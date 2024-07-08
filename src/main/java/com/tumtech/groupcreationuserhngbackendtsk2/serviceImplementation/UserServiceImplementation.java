@@ -2,13 +2,15 @@ package com.tumtech.groupcreationuserhngbackendtsk2.serviceImplementation;
 
 import com.tumtech.groupcreationuserhngbackendtsk2.apiResponse.APiResponses;
 import com.tumtech.groupcreationuserhngbackendtsk2.apiResponse.UserRequestResponse;
+import com.tumtech.groupcreationuserhngbackendtsk2.dto.LoginRequest;
 import com.tumtech.groupcreationuserhngbackendtsk2.dto.RegisterRequest;
 import com.tumtech.groupcreationuserhngbackendtsk2.entity.Organisations;
 import com.tumtech.groupcreationuserhngbackendtsk2.entity.Users;
+import com.tumtech.groupcreationuserhngbackendtsk2.exception.UserNameNotFoundException;
 import com.tumtech.groupcreationuserhngbackendtsk2.repostory.UserRepository;
 import com.tumtech.groupcreationuserhngbackendtsk2.util.JwtUtil;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -16,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class UserServiceImplementation implements UserDetailsService {
@@ -32,38 +36,115 @@ public class UserServiceImplementation implements UserDetailsService {
     }
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-return (UserDetails) userRepository.findByEmail(username).orElseThrow(()-> new UsernameNotFoundException("user not found"));
+return userRepository.findByEmail(username).orElseThrow(()-> new UsernameNotFoundException("user not found"));
     }
-    public APiResponses registerUser ( @Valid RegisterRequest request) {
+    public APiResponses registerUser (RegisterRequest request) {
         try {
-            Optional<Users> users = userRepository.findByEmail(request.getEmail());
-            if (users.isPresent()) {
-                return new APiResponses("Bad Request", "You already Registered", 400);
-            }
-            Users users1 = new Users();
-            users1.setFirstName(request.getFirstName());
-            users1.setLastName(request.getLastName());
-            users1.setPhone(request.getPhone());
-            users1.setEmail(request.getEmail());
-            users1.setPassword(request.getPassword());
-            Users savedUser = userRepository.save(users1);
+        List<Map<String, String>> errors = validateRequest(request);
+        if (!errors.isEmpty()) {
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("errors", errors);
+            return new APiResponses("Validation Error", "Invalid input", errorData, 422);
+        }
+
+                Optional<Users> exists = userRepository.findByEmail(request.getEmail());
+                if (exists.isPresent()) {
+                    return new APiResponses("Bad Request", "You already Registered", 400);
+                }
+                Users users1 = new Users();
+                users1.setFirstName(request.getFirstName());
+                users1.setLastName(request.getLastName());
+                users1.setPhone(request.getPhone());
+                users1.setEmail(request.getEmail());
+                users1.setPassword(passwordEncoder.encode(request.getPassword()));
+                Users savedUser = userRepository.save(users1);
             Organisations organisations= organisationServiceImplementation.createOrganisation(savedUser);
             Set<Organisations> organisationsSet = new HashSet<>();
             organisationsSet.add(organisations);
           savedUser.setOrganisations(organisationsSet);
           userRepository.save(savedUser);
-           String accessToken = jwtUtil.createJwt.apply((UserDetails) savedUser);
-            Map<String, Object> data = generateData(savedUser, accessToken);
+                String accessToken = jwtUtil.createJwt.apply(savedUser);
+                Map<String, Object> data = generateData(savedUser, accessToken);
 
-            return new APiResponses("success","Registration Successful", data.toString(),201);
+                return new APiResponses("success", "Registration Successful", data, 201);
 
-        }catch (Exception e){
-            e.printStackTrace();
-            return new APiResponses("Bad Request","Registration unsuccessful",400);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return new APiResponses("Bad Request", "Registration unsuccessful", 400);
+            }
 
-
-        }
     }
+
+    private List<Map<String, String>> validateRequest(RegisterRequest request) {
+        List<Map<String, String>> errors = new ArrayList<>();
+
+        // Validate first name
+        if (request.getFirstName() == null || request.getFirstName().isEmpty()) {
+            errors.add(createError("firstName", "First name is required"));
+        } else if (request.getFirstName().length() < 2 || request.getFirstName().length() > 50) {
+            errors.add(createError("firstName", "First name must be between 2 and 50 characters"));
+        }
+
+        // Validate last name
+        if (request.getLastName() == null || request.getLastName().isEmpty()) {
+            errors.add(createError("lastName", "Last name is required"));
+        } else if (request.getLastName().length() < 2 || request.getLastName().length() > 50) {
+            errors.add(createError("lastName", "Last name must be between 2 and 50 characters"));
+        }
+
+        // Validate email
+        if (request.getEmail() == null || request.getEmail().isEmpty()) {
+            errors.add(createError("email", "Email is required"));
+        } else if (!isValidEmail(request.getEmail())) {
+            errors.add(createError("email", "Email format is invalid"));
+        }
+
+        // Validate password
+        if (request.getPassword() == null || request.getPassword().isEmpty()) {
+            errors.add(createError("password", "Password is required"));
+        } else if (!isStrongPassword(request.getPassword())) {
+            errors.add(createError("password", "Password must be at least 8 characters, include at least one uppercase letter, one lowercase letter, one number, and one special character"));
+        }
+
+        // Validate phone (optional)
+        if (request.getPhone() != null && !request.getPhone().isEmpty() && !isValidPhoneNumber(request.getPhone())) {
+            errors.add(createError("phone", "Phone number format is invalid"));
+        }
+
+        return errors;
+    }
+
+    private boolean isValidEmail(String email) {
+        String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
+        Pattern pattern = Pattern.compile(emailRegex);
+        Matcher matcher = pattern.matcher(email);
+        return matcher.matches();
+    }
+
+    private boolean isStrongPassword(String password) {
+        // Password must be at least 8 characters, include at least one uppercase letter, one lowercase letter, one number, and one special character
+        String passwordRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+        Pattern pattern = Pattern.compile(passwordRegex);
+        Matcher matcher = pattern.matcher(password);
+        return matcher.matches();
+    }
+
+    private boolean isValidPhoneNumber(String phone) {
+        // Validate phone number format (simple example, adjust as needed)
+        String phoneRegex = "^[0-9]{10,15}$";
+        Pattern pattern = Pattern.compile(phoneRegex);
+        Matcher matcher = pattern.matcher(phone);
+        return matcher.matches();
+    }
+
+    private Map<String, String> createError(String field, String message) {
+        Map<String, String> error = new HashMap<>();
+        error.put("field", field);
+        error.put("message", message);
+        return error;
+    }
+
+
 
     private static Map<String, Object> generateData(Users savedUser, String accessToken) {
         UserRequestResponse userRequestResponse = new UserRequestResponse();
@@ -78,5 +159,37 @@ return (UserDetails) userRepository.findByEmail(username).orElseThrow(()-> new U
         return data;
     }
 
+    public APiResponses login (LoginRequest request) throws UserNameNotFoundException {
+        try {
+            if (request != null) {
+                Users users = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UserNameNotFoundException("User not found"));
+                if (users != null) {
+                    if (!passwordEncoder.matches(request.getPassword(), users.getPassword())) {
+                        return new APiResponses("Bad Request", "Authentication failed", 401);
+                    }
+                    String accessToken = jwtUtil.createJwt.apply(users);
+                    return new APiResponses("success", "Login successful", generateData(users, accessToken), 200);
 
+                }
+
+            }
+
+            return new APiResponses("Bad Request", "Authentication failed",401);
+
+
+        }catch (Exception e){
+            e.printStackTrace();
+            return new APiResponses("Bad Request", "Authentication failed", 401);
+        }
+    }
+
+/*
+* get user
+* requirement: get their own detail with their own id. This means they have to be first logged in. Then their info cn now be gotten.
+* steps
+* check if the security Auth; for the logged-in user information
+* */
+    public APiResponses getUserInfo (Authentication authentication){
+return null;
+    }
 }
