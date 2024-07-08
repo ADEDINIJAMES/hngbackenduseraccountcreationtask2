@@ -70,7 +70,7 @@ try{
 }
 public APiResponses createOrganisationForLoggedin (OrganisationCreationRequest organisationCreationRequest) {
     try {
-        if (organisationCreationRequest == null || organisationCreationRequest.getName() == null) {
+        if(organisationCreationRequest==null || organisationCreationRequest.getName()==null){
             return new APiResponses("UNPROCESSABLE_ENTITY", "Organisation Name Required", 422);
         }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -87,16 +87,40 @@ public APiResponses createOrganisationForLoggedin (OrganisationCreationRequest o
         data.put("name", savedOrganisation.getName());
         data.put("description", savedOrganisation.getDescription());
         return new APiResponses("success", "Organisation created successfully", data, 201);
-    } catch (Exception e) {
+    }catch (Exception e){
         return new APiResponses("Bad Request", "Client error", 400);
     }
-}}
+}
+
+
+public APiResponses addUserToOrganisation (String userId, String orgId) {
+    try {
+
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Users loggedInUser = (Users) authentication.getPrincipal();
 
 
 
+        Optional<Organisations> organisations = organisationRepository.findById(UUID.fromString(orgId));
+        Users users = userRepository.findById(UUID.fromString(userId)).orElse(null);
+        if (organisations.isPresent()) {
+            if (organisations.get().getUsers().contains(loggedInUser)) {
+                Set<Users> addUsers = organisations.get().getUsers();
+                addUsers.add(users);
+                Organisations saved = organisationRepository.save(organisations.get());
+                return new APiResponses("success", "user added to organisation successfully", 200);
+
+            }
+        }
+    }catch (Exception e){
+        e.printStackTrace();
+        return new APiResponses ("Bad Request", e.getMessage(),400);
+    }
+    return null;
+}
 
 
-//
 //    public APiResponses addUserToOrganisation(String userId, String orgId) {
 //        try {
 //            if (!UUIDValidator.isValidUUID(userId) || !UUIDValidator.isValidUUID(orgId)) {
@@ -129,6 +153,8 @@ public APiResponses createOrganisationForLoggedin (OrganisationCreationRequest o
 //            return new APiResponses("Bad Request", e.getMessage(), 400);
 //        }
 //    }
+
+}
 //
 //[POST] /api/organisations/:orgId/users : adds a user to a particular organisation
 //        Request body:
