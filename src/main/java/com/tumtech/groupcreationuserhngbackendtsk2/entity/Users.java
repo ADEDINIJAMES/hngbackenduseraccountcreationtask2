@@ -1,5 +1,6 @@
 package com.tumtech.groupcreationuserhngbackendtsk2.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -9,6 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @AllArgsConstructor
@@ -19,7 +21,7 @@ public class Users{
     @Id
     @Column(unique = true)
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private String userid;
+    private UUID userid;
 
     @NotNull
     private String firstName;
@@ -31,6 +33,7 @@ public class Users{
     @NotNull
     private String password;
     private String phone;
+    @JsonIgnore
     @ManyToMany(mappedBy = "users")
    private Set<Organisations> organisations = new HashSet<>();
 

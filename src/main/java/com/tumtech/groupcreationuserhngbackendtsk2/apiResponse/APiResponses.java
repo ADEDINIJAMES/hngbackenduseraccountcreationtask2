@@ -12,4 +12,10 @@ public class APiResponses {
     private String message;
     private String data;
     private int statusCode;
+
+    public APiResponses(String status, String message, int statusCode) {
+        this.status = status;
+        this.message = message;
+        this.statusCode = statusCode;
+    }
 }
