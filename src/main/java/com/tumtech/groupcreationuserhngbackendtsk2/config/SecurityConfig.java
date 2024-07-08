@@ -42,7 +42,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(httpRequests -> httpRequests
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("http").authenticated())
+                        .requestMatchers("/api/user/**","/api/organisations/**").authenticated())
                 .logout(logout-> logout.deleteCookies("remove").invalidateHttpSession(true)
 
                 ).

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
     @ExceptionHandler(UserNameNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-public ResponseEntity<APiResponses> handleUserNameNotFoundException (UserNameNotFoundException exception){
+public static ResponseEntity<APiResponses> handleUserNameNotFoundException (UserNameNotFoundException exception){
     return new ResponseEntity<>(new APiResponses("NOT_FOUND",exception.getMessage(),null,404), HttpStatus.NOT_FOUND);
 }
 

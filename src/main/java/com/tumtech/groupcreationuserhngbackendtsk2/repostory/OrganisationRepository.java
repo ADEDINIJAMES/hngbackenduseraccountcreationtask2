@@ -1,7 +1,12 @@
 package com.tumtech.groupcreationuserhngbackendtsk2.repostory;
 
 import com.tumtech.groupcreationuserhngbackendtsk2.entity.Organisations;
+import com.tumtech.groupcreationuserhngbackendtsk2.entity.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface OrganisationRepository extends JpaRepository<Organisations, String> {
+import java.util.List;
+import java.util.UUID;
+
+public interface OrganisationRepository extends JpaRepository<Organisations, UUID> {
+    List<Organisations> findByUsers(Users users);
 }

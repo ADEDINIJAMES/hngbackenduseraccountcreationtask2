@@ -11,6 +11,7 @@ import com.tumtech.groupcreationuserhngbackendtsk2.repostory.UserRepository;
 import com.tumtech.groupcreationuserhngbackendtsk2.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -36,7 +37,7 @@ public class UserServiceImplementation implements UserDetailsService {
     }
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-return userRepository.findByEmail(username).orElseThrow(()-> new UsernameNotFoundException("user not found"));
+return userRepository.findByEmail(username).orElseThrow(()-> new UserNameNotFoundException("user not found"));
     }
     public APiResponses registerUser (RegisterRequest request) {
         try {
@@ -168,6 +169,7 @@ return userRepository.findByEmail(username).orElseThrow(()-> new UsernameNotFoun
                         return new APiResponses("Bad Request", "Authentication failed", 401);
                     }
                     String accessToken = jwtUtil.createJwt.apply(users);
+
                     return new APiResponses("success", "Login successful", generateData(users, accessToken), 200);
 
                 }
@@ -189,7 +191,49 @@ return userRepository.findByEmail(username).orElseThrow(()-> new UsernameNotFoun
 * steps
 * check if the security Auth; for the logged-in user information
 * */
-    public APiResponses getUserInfo (Authentication authentication){
-return null;
+    public APiResponses getUserInfo (String id) throws UserNameNotFoundException {
+        // if the id is for the user or it is an id of the person in the same organisation with him;
+       try {
+
+
+           Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+           if (authentication == null) {
+               return new APiResponses("UNAUTHORIZED", "you are not logged in", 401);
+           }
+           Users users1 = userRepository.findById(UUID.fromString(id)).orElseThrow(() -> new UserNameNotFoundException("user not found"));
+
+           Users users = (Users) authentication.getPrincipal();
+           List<Organisations> userBelongOrg = organisationServiceImplementation.organisationsList(users);
+           List<Organisations> newUserBelong = organisationServiceImplementation.organisationsList(users1);
+           for (Organisations organisations : userBelongOrg) {
+               if (newUserBelong.contains(organisations) || id.equals(users.getUserid())) {
+                   Map<String, Object> data = generateDataForUser(users1);
+
+                   return new APiResponses("success", "<message>", data, 200);
+               }
+               return new APiResponses("UNAUTHORIZED", "You are not permitted to view this",401);
+           }
+
+       }catch (Exception e){
+           e.printStackTrace();
+           return new APiResponses("INTERNAL_SERVER_ERROR",e.getMessage(),500);
+       }
+       return null;
+    }
+
+    private static Map<String, Object> generateDataForUser(Users users1) {
+        Map<String, Object> data = new HashMap<>();
+        UserRequestResponse userRequestResponse = new UserRequestResponse();
+        userRequestResponse.setUserId(String.valueOf(users1.getUserid()));
+        userRequestResponse.setEmail(users1.getEmail());
+        userRequestResponse.setPhone(users1.getPhone());
+        userRequestResponse.setFirstName(users1.getFirstName());
+        userRequestResponse.setLastName(users1.getLastName());
+        data.put("userId", userRequestResponse.getUserId());
+        data.put("firstName", userRequestResponse.getFirstName());
+        data.put("lastName", userRequestResponse.getLastName());
+        data.put("email", userRequestResponse.getEmail());
+        data.put("phone", userRequestResponse.getPhone());
+        return data;
     }
 }
