@@ -1,16 +1,14 @@
 package com.tumtech.groupcreationuserhngbackendtsk2.serviceImplementation;
 
 import com.tumtech.groupcreationuserhngbackendtsk2.apiResponse.APiResponses;
+import com.tumtech.groupcreationuserhngbackendtsk2.dto.AddUserToOrganisationRequest;
 import com.tumtech.groupcreationuserhngbackendtsk2.dto.OrganisationCreationRequest;
 import com.tumtech.groupcreationuserhngbackendtsk2.entity.Organisations;
 import com.tumtech.groupcreationuserhngbackendtsk2.entity.Users;
+import com.tumtech.groupcreationuserhngbackendtsk2.exception.UserNameNotFoundException;
 import com.tumtech.groupcreationuserhngbackendtsk2.repostory.OrganisationRepository;
 import com.tumtech.groupcreationuserhngbackendtsk2.repostory.UserRepository;
-import com.tumtech.groupcreationuserhngbackendtsk2.util.UUIDValidator;
-import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -36,14 +34,14 @@ public Organisations createOrganisation (Users users){
     return organisationRepository.save(organisations);
 }
 
-public List<Organisations> organisationsList(Users users){
+public Set<Organisations> organisationsList(Users users){
     return organisationRepository.findByUsers(users);
 }
 public APiResponses getOrganisationsOfUsers () {
     try {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Users users = (Users) authentication.getPrincipal();
-        List<Organisations> organisations = organisationsList(users);
+        Set<Organisations> organisations = organisationsList(users);
         Map<String, Object> data = new HashMap<>();
         data.put("organisations", organisations);
         return new APiResponses("success", "<message>", data, 200);
@@ -54,7 +52,7 @@ public APiResponses getOrganisationsOfUsers () {
 }
 public APiResponses getOneOrganisation (String id){
 try{
-   Optional< Organisations >organisations = organisationRepository.findById(UUID.fromString(id));
+   Optional< Organisations >organisations = organisationRepository.findById(id);
    if(organisations.isEmpty()){
        return new APiResponses("NOT_FOUND", "Organisation not found", 404);
    }
@@ -93,31 +91,38 @@ public APiResponses createOrganisationForLoggedin (OrganisationCreationRequest o
 }
 
 
-public APiResponses addUserToOrganisation (String userId, String orgId) {
+public APiResponses addUserToOrganisation (AddUserToOrganisationRequest userId, String orgId) {
     try {
 
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Users loggedInUser = (Users) authentication.getPrincipal();
 
+        Organisations organisations = organisationRepository.findById(orgId).orElseThrow(()-> new UserNameNotFoundException("Organisation not found"));
+        Users users = userRepository.findById(userId.getUserId()).orElseThrow(()-> new UserNameNotFoundException("user not found"));
+        Set<Users> addUsers = organisations.getUsers();
 
-
-        Optional<Organisations> organisations = organisationRepository.findById(UUID.fromString(orgId));
-        Users users = userRepository.findById(UUID.fromString(userId)).orElse(null);
-        if (organisations.isPresent()) {
-            if (organisations.get().getUsers().contains(loggedInUser)) {
-                Set<Users> addUsers = organisations.get().getUsers();
-                addUsers.add(users);
-                Organisations saved = organisationRepository.save(organisations.get());
-                return new APiResponses("success", "user added to organisation successfully", 200);
+        if (addUsers.contains(loggedInUser)) {
+            return new APiResponses("bad request", "Logged in user is not part of the organisation",400);
 
             }
-        }
+        addUsers.add(users);
+      Set<Organisations> organisationsSet = organisationRepository.findByUsers(users);
+      organisationsSet.add(organisations);
+      users.setOrganisations(organisationsSet);
+      userRepository.save(users);
+      organisationRepository.save(organisations);
+
+      organisations.setUsers(addUsers);
+
+      Organisations saved = organisationRepository.save(organisations);
+      return new APiResponses("success", "user added to organisation successfully", 200);
+
     }catch (Exception e){
         e.printStackTrace();
         return new APiResponses ("Bad Request", e.getMessage(),400);
     }
-    return null;
+
 }
 
 

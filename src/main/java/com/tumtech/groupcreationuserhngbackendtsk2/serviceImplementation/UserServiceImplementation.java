@@ -9,6 +9,7 @@ import com.tumtech.groupcreationuserhngbackendtsk2.entity.Users;
 import com.tumtech.groupcreationuserhngbackendtsk2.exception.UserNameNotFoundException;
 import com.tumtech.groupcreationuserhngbackendtsk2.repostory.UserRepository;
 import com.tumtech.groupcreationuserhngbackendtsk2.util.JwtUtil;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,6 +36,24 @@ public class UserServiceImplementation implements UserDetailsService {
         this.jwtUtil = jwtUtil;
         this.organisationServiceImplementation =organisationServiceImplementation;
     }
+
+    public UserServiceImplementation() {
+
+    }
+
+    @Transactional
+    public void deleteUser(String userId) {
+        Users user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Remove the associations from the join table
+        for (Organisations organisation : user.getOrganisations()) {
+            organisation.getUsers().remove(user);
+        }
+        user.getOrganisations().clear();
+
+        // Now delete the user
+        userRepository.delete(user);
+    }
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 return userRepository.findByEmail(username).orElseThrow(()-> new UserNameNotFoundException("user not found"));
@@ -50,7 +69,7 @@ return userRepository.findByEmail(username).orElseThrow(()-> new UserNameNotFoun
 
                 Optional<Users> exists = userRepository.findByEmail(request.getEmail());
                 if (exists.isPresent()) {
-                    return new APiResponses("Bad Request", "You already Registered", 400);
+                    return new APiResponses("Validation Error", "Email already exists", 422);
                 }
                 Users users1 = new Users();
                 users1.setFirstName(request.getFirstName());
@@ -185,41 +204,46 @@ return userRepository.findByEmail(username).orElseThrow(()-> new UserNameNotFoun
         }
     }
 
+
 /*
 * get user
 * requirement: get their own detail with their own id. This means they have to be first logged in. Then their info cn now be gotten.
 * steps
 * check if the security Auth; for the logged-in user information
 * */
-    public APiResponses getUserInfo (String id) throws UserNameNotFoundException {
-        // if the id is for the user or it is an id of the person in the same organisation with him;
-       try {
+public APiResponses getUserInfo(String id) {
+    try {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return new APiResponses("UNAUTHORIZED", "You are not logged in", 401);
+        }
 
+        Users requestedUser = userRepository.findById(id).orElse(null);
+        if (requestedUser == null) {
+            return new APiResponses("NOT_FOUND", "User not found", 404);
+        }
 
-           Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-           if (authentication == null) {
-               return new APiResponses("UNAUTHORIZED", "you are not logged in", 401);
-           }
-           Users users1 = userRepository.findById(UUID.fromString(id)).orElseThrow(() -> new UserNameNotFoundException("user not found"));
+        Users authenticatedUser = (Users) authentication.getPrincipal();
+        Set<Organisations> authenticatedUserOrgs = organisationServiceImplementation.organisationsList(authenticatedUser);
+        Set<Organisations> requestedUserOrgs = organisationServiceImplementation.organisationsList(requestedUser);
 
-           Users users = (Users) authentication.getPrincipal();
-           List<Organisations> userBelongOrg = organisationServiceImplementation.organisationsList(users);
-           List<Organisations> newUserBelong = organisationServiceImplementation.organisationsList(users1);
-           for (Organisations organisations : userBelongOrg) {
-               if (newUserBelong.contains(organisations) || id.equals(users.getUserid())) {
-                   Map<String, Object> data = generateDataForUser(users1);
+        System.out.println("Authenticated user ID: " + authenticatedUser.getUserid());
+        System.out.println("Requested user ID: " + requestedUser.getUserid());
 
-                   return new APiResponses("success", "<message>", data, 200);
-               }
-               return new APiResponses("UNAUTHORIZED", "You are not permitted to view this",401);
-           }
+        for (Organisations org : authenticatedUserOrgs) {
+            System.out.println("Authenticated user belongs to org ID: " + org.getOrgId());
+            if (requestedUserOrgs.contains(org) || id.equals(authenticatedUser.getUserid())) {
+                Map<String, Object> data = generateDataForUser(requestedUser);
+                return new APiResponses("SUCCESS", "User info retrieved successfully", data, 200);
+            }
+        }
 
-       }catch (Exception e){
-           e.printStackTrace();
-           return new APiResponses("INTERNAL_SERVER_ERROR",e.getMessage(),500);
-       }
-       return null;
+        return new APiResponses("UNAUTHORIZED", "You are not permitted to view this", 401);
+    } catch (Exception e) {
+        e.printStackTrace();
+        return new APiResponses("INTERNAL_SERVER_ERROR", e.getMessage(), 500);
     }
+}
 
     private static Map<String, Object> generateDataForUser(Users users1) {
         Map<String, Object> data = new HashMap<>();

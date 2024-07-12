@@ -1,6 +1,7 @@
 package com.tumtech.groupcreationuserhngbackendtsk2.controller;
 
 import com.tumtech.groupcreationuserhngbackendtsk2.apiResponse.APiResponses;
+import com.tumtech.groupcreationuserhngbackendtsk2.dto.AddUserToOrganisationRequest;
 import com.tumtech.groupcreationuserhngbackendtsk2.dto.OrganisationCreationRequest;
 import com.tumtech.groupcreationuserhngbackendtsk2.serviceImplementation.OrganisationServiceImplementation;
 import com.tumtech.groupcreationuserhngbackendtsk2.serviceImplementation.UserServiceImplementation;
@@ -69,7 +70,7 @@ public class OrganisationController {
     }
 
     @PostMapping("/{orgId}/user")
-    public ResponseEntity<?> createOrganisation(@Valid @RequestBody String userId, @PathVariable  String orgId) {
+    public ResponseEntity<?> createOrganisation( @PathVariable  String orgId, @Valid @RequestBody AddUserToOrganisationRequest userId) {
         try {
 
             APiResponses response = organisationServiceImplementation.addUserToOrganisation(userId,orgId);
@@ -80,6 +81,7 @@ public class OrganisationController {
             }
             return ResponseEntity.status(response.getStatusCode()).body(response);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(400).body(new APiResponses("Bad Request", "Client error", 400));
         }
     }

@@ -1,6 +1,7 @@
 package com.tumtech.groupcreationuserhngbackendtsk2.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.tumtech.groupcreationuserhngbackendtsk2.util.IdGenerator;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -21,14 +22,22 @@ import java.util.UUID;
 public class Organisations {
     @Id
     @Column(unique = true)
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID orgId;
+    private String orgId;
     @NotNull
     private String name;
     private String description;
     @JsonIgnore
-    @ManyToMany
-
+    @ManyToMany(cascade = { CascadeType.PERSIST, CascadeType.MERGE })
+    @JoinTable(
+            name = "organisations_users",
+            joinColumns = @JoinColumn(name = "org_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<Users> users = new HashSet<>();
+    @PrePersist
+    public void prePersist() {
+        if (orgId == null) {
+            orgId = IdGenerator.generateNanoId(10);
+        }
+    }
 
 }

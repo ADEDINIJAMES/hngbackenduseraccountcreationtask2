@@ -1,10 +1,12 @@
 package com.tumtech.groupcreationuserhngbackendtsk2.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.tumtech.groupcreationuserhngbackendtsk2.util.IdGenerator;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -18,8 +20,7 @@ import java.util.*;
 public class Users implements UserDetails{
     @Id
     @Column(unique = true)
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID userid;
+    private String userid;
 
     @NotNull(message = "firstName is required")
     private String firstName;
@@ -33,7 +34,7 @@ public class Users implements UserDetails{
     private String password;
     private String phone;
     @JsonIgnore
-    @ManyToMany(mappedBy = "users")
+    @ManyToMany(mappedBy = "users", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, fetch = FetchType.EAGER)
    private Set<Organisations> organisations = new HashSet<>();
 
     @Override
@@ -51,6 +52,12 @@ public class Users implements UserDetails{
         return UserDetails.super.isAccountNonExpired();
     }
 
+    @PrePersist
+    public void prePersist() {
+        if (userid == null) {
+            userid = IdGenerator.generateNanoId(10); // Specify the length of the NanoId here
+        }
+    }
     @Override
     public boolean isAccountNonLocked() {
         return UserDetails.super.isAccountNonLocked();

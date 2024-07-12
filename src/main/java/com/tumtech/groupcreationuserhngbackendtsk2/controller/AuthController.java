@@ -6,6 +6,7 @@ import com.tumtech.groupcreationuserhngbackendtsk2.dto.RegisterRequest;
 import com.tumtech.groupcreationuserhngbackendtsk2.exception.UserNameNotFoundException;
 import com.tumtech.groupcreationuserhngbackendtsk2.serviceImplementation.UserServiceImplementation;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/auth")
 public class AuthController {
     private UserServiceImplementation userServiceImplementation;
-
+@Autowired
     public AuthController(UserServiceImplementation userServiceImplementation) {
         this.userServiceImplementation = userServiceImplementation;
     }
