@@ -66,29 +66,40 @@ try{
     return new APiResponses("INTERNAL_SERVER_ERROR", e.getMessage(),500);
 }
 }
-public APiResponses createOrganisationForLoggedin (OrganisationCreationRequest organisationCreationRequest) {
-    try {
-        if(organisationCreationRequest==null || organisationCreationRequest.getName()==null){
-            return new APiResponses("UNPROCESSABLE_ENTITY", "Organisation Name Required", 422);
+    public APiResponses createOrganisationForLoggedInUser(OrganisationCreationRequest organisationCreationRequest) {
+        try {
+            if (organisationCreationRequest == null || organisationCreationRequest.getName() == null) {
+                return new APiResponses("UNPROCESSABLE_ENTITY", "Organisation Name Required", 422);
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            Users user = (Users) authentication.getPrincipal();
+
+            Organisations organisation = new Organisations();
+            organisation.setName(organisationCreationRequest.getName());
+            organisation.setDescription(organisationCreationRequest.getDescription());
+
+            Organisations savedOrganisation = organisationRepository.save(organisation);
+Set<Users> usersSet  = savedOrganisation.getUsers();
+usersSet.add(user);
+
+Set<Organisations> organisationsSet = user.getOrganisations();
+organisationsSet.add(organisation);
+userRepository.save(user);
+organisationRepository.save(savedOrganisation);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("orgId", savedOrganisation.getOrgId());
+            data.put("name", savedOrganisation.getName());
+            data.put("description", savedOrganisation.getDescription());
+
+            return new APiResponses("success", "Organisation created successfully", data, 201);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new APiResponses("Bad Request", "Client error", 400);
         }
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Users users = (Users) authentication.getPrincipal();
-        Organisations organisations = new Organisations();
-        organisations.setName(organisationCreationRequest.getName());
-        organisations.setDescription(organisationCreationRequest.getDescription());
-        Set<Users> usersSet = new HashSet<>();
-        usersSet.add(users);
-        organisations.setUsers(usersSet);
-        Organisations savedOrganisation = organisationRepository.save(organisations);
-        Map<String, Object> data = new HashMap<>();
-        data.put("orgId", savedOrganisation.getOrgId());
-        data.put("name", savedOrganisation.getName());
-        data.put("description", savedOrganisation.getDescription());
-        return new APiResponses("success", "Organisation created successfully", data, 201);
-    }catch (Exception e){
-        return new APiResponses("Bad Request", "Client error", 400);
     }
-}
+
 
 
 public APiResponses addUserToOrganisation (AddUserToOrganisationRequest userId, String orgId) {
@@ -107,15 +118,11 @@ public APiResponses addUserToOrganisation (AddUserToOrganisationRequest userId, 
 
             }
         addUsers.add(users);
-      Set<Organisations> organisationsSet = organisationRepository.findByUsers(users);
-      organisationsSet.add(organisations);
-      users.setOrganisations(organisationsSet);
-      userRepository.save(users);
-      organisationRepository.save(organisations);
-
-      organisations.setUsers(addUsers);
-
       Organisations saved = organisationRepository.save(organisations);
+
+      Set<Organisations> organisationsSet= users.getOrganisations();
+      organisationsSet.add(saved);
+      userRepository.save(users);
       return new APiResponses("success", "user added to organisation successfully", 200);
 
     }catch (Exception e){

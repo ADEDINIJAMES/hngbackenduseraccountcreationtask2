@@ -2,7 +2,9 @@ package com.tumtech.groupcreationuserhngbackendtsk2.serviceImplementation;
 
 import com.tumtech.groupcreationuserhngbackendtsk2.apiResponse.APiResponses;
 import com.tumtech.groupcreationuserhngbackendtsk2.entity.Users;
+import com.tumtech.groupcreationuserhngbackendtsk2.repostory.OrganisationRepository;
 import com.tumtech.groupcreationuserhngbackendtsk2.repostory.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,9 @@ public class OrganisationServiceTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private OrganisationRepository organisationRepository;
 
     private Users user1;
     private Users user2;
@@ -50,6 +55,12 @@ public class OrganisationServiceTest {
         user2.setLastName("James");
         user2.setPassword("password@123");
         savedUser2 = userRepository.save(user2);
+    }
+@AfterEach
+    public void tearDown() {
+    userRepository.deleteAll();
+    organisationRepository.deleteAll();
+
     }
 
     @Test

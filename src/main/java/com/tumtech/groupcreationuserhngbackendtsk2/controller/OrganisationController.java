@@ -21,7 +21,7 @@ public class OrganisationController {
         this.organisationServiceImplementation = organisationServiceImplementation;
     }
 
-    @GetMapping("/")
+    @GetMapping()
     public ResponseEntity<?> getOrganisationOfUser() {
         try {
 
@@ -53,11 +53,11 @@ public class OrganisationController {
     }
 
 
-    @PostMapping("/")
+    @PostMapping()
     public ResponseEntity<?> createOrganisation(@Valid @RequestBody OrganisationCreationRequest request) {
         try {
 
-            APiResponses response = organisationServiceImplementation.createOrganisationForLoggedin(request);
+            APiResponses response = organisationServiceImplementation.createOrganisationForLoggedInUser(request);
             if (response.getStatusCode() == 201) {
                 return ResponseEntity.status(response.getStatusCode()).body(response);
             } else if (response.getStatusCode() == 422) {
@@ -69,8 +69,8 @@ public class OrganisationController {
         }
     }
 
-    @PostMapping("/{orgId}/user")
-    public ResponseEntity<?> createOrganisation( @PathVariable  String orgId, @Valid @RequestBody AddUserToOrganisationRequest userId) {
+    @PostMapping("/{orgId}/users")
+    public ResponseEntity<?> addUserToOrganisation ( @PathVariable  String orgId, @Valid @RequestBody AddUserToOrganisationRequest userId) {
         try {
 
             APiResponses response = organisationServiceImplementation.addUserToOrganisation(userId,orgId);

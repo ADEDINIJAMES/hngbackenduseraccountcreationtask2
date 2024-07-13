@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/users")
 public class UserController {
     private UserServiceImplementation userServiceImplementation;
     public UserController (UserServiceImplementation userServiceImplementation){

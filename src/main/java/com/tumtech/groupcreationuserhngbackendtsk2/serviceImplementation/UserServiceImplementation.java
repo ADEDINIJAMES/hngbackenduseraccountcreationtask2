@@ -143,7 +143,7 @@ return userRepository.findByEmail(username).orElseThrow(()-> new UserNameNotFoun
 
     private boolean isStrongPassword(String password) {
         // Password must be at least 8 characters, include at least one uppercase letter, one lowercase letter, one number, and one special character
-        String passwordRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+        String passwordRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d])[A-Za-z\\d[^A-Za-z\\d]]{8,}$";
         Pattern pattern = Pattern.compile(passwordRegex);
         Matcher matcher = pattern.matcher(password);
         return matcher.matches();
@@ -151,7 +151,7 @@ return userRepository.findByEmail(username).orElseThrow(()-> new UserNameNotFoun
 
     private boolean isValidPhoneNumber(String phone) {
         // Validate phone number format (simple example, adjust as needed)
-        String phoneRegex = "^[0-9]{10,15}$";
+        String phoneRegex = "^\\+?[0-9]{10,15}$";
         Pattern pattern = Pattern.compile(phoneRegex);
         Matcher matcher = pattern.matcher(phone);
         return matcher.matches();
